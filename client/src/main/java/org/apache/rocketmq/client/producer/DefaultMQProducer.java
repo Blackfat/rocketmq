@@ -87,16 +87,19 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
     /**
      * Number of queues to create per default topic.
      */
+    //默认一个主题在broker的队列数量
     private volatile int defaultTopicQueueNums = 4;
 
     /**
      * Timeout for sending messages.
      */
+    // 默认发送消息的超时时间3s
     private int sendMsgTimeout = 3000;
 
     /**
      * Compress message body threshold, namely, message body larger than 4k will be compressed on default.
      */
+    // 消息体超过4k则启用压缩
     private int compressMsgBodyOverHowmuch = 1024 * 4;
 
     /**
@@ -105,6 +108,7 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
      *
      * This may potentially cause message duplication which is up to application developers to resolve.
      */
+    // 默认消息发送失败的同步次数
     private int retryTimesWhenSendFailed = 2;
 
     /**
@@ -123,6 +127,7 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
     /**
      * Maximum allowed message size in bytes.
      */
+    // 默认发送消息的最大长度4m，允许最大2^32-1
     private int maxMessageSize = 1024 * 1024 * 4; // 4M
 
     /**

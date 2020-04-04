@@ -61,23 +61,28 @@ import org.apache.rocketmq.store.stats.BrokerStatsManager;
 
 public class DefaultMessageStore implements MessageStore {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
-
+    // 消息存储配置
     private final MessageStoreConfig messageStoreConfig;
-    // CommitLog
+    // CommitLog 文件存储实现类
     private final CommitLog commitLog;
-
+    // 主题队列的缓存表
     private final ConcurrentMap<String/* topic */, ConcurrentMap<Integer/* queueId */, ConsumeQueue>> consumeQueueTable;
 
+    // ConsumeQueue刷盘线程
     private final FlushConsumeQueueService flushConsumeQueueService;
 
+    // 清除CommitLog服务
     private final CleanCommitLogService cleanCommitLogService;
 
+    // 清除ConsumeQueue服务
     private final CleanConsumeQueueService cleanConsumeQueueService;
 
+    // 索引文件实现
     private final IndexService indexService;
 
     private final AllocateMappedFileService allocateMappedFileService;
 
+    // CommitLog的消息分发
     private final ReputMessageService reputMessageService;
 
     private final HAService haService;
@@ -150,6 +155,7 @@ public class DefaultMessageStore implements MessageStore {
         this.indexService.start();
 
         this.dispatcherList = new LinkedList<>();
+        // dispatcherList
         this.dispatcherList.addLast(new CommitLogDispatcherBuildConsumeQueue());
         this.dispatcherList.addLast(new CommitLogDispatcherBuildIndex());
 
@@ -357,6 +363,7 @@ public class DefaultMessageStore implements MessageStore {
             return new PutMessageResult(PutMessageStatus.SERVICE_NOT_AVAILABLE, null);
         }
 
+        // broken角色为slave拒绝写入
         if (BrokerRole.SLAVE == this.messageStoreConfig.getBrokerRole()) {
             long value = this.printTimes.getAndIncrement();
             if ((value % 50000) == 0) {
@@ -377,11 +384,13 @@ public class DefaultMessageStore implements MessageStore {
             this.printTimes.set(0);
         }
 
+        // topic超过256个字符
         if (msg.getTopic().length() > Byte.MAX_VALUE) {
             log.warn("putMessage message topic length too long " + msg.getTopic().length());
             return new PutMessageResult(PutMessageStatus.MESSAGE_ILLEGAL, null);
         }
 
+        // 属性长度65535个字符
         if (msg.getPropertiesString() != null && msg.getPropertiesString().length() > Short.MAX_VALUE) {
             log.warn("putMessage message properties length too long " + msg.getPropertiesString().length());
             return new PutMessageResult(PutMessageStatus.PROPERTIES_SIZE_EXCEEDED, null);
@@ -1773,7 +1782,7 @@ public class DefaultMessageStore implements MessageStore {
     }
 
     class ReputMessageService extends ServiceThread {
-
+        // 从哪个物理偏移量开始转发消息给ConsumerQueue和IndexFile
         private volatile long reputFromOffset = 0;
 
         public long getReputFromOffset() {
@@ -1821,7 +1830,7 @@ public class DefaultMessageStore implements MessageStore {
                     && this.reputFromOffset >= DefaultMessageStore.this.getConfirmOffset()) {
                     break;
                 }
-
+                 // 读取消息
                 SelectMappedBufferResult result = DefaultMessageStore.this.commitLog.getData(reputFromOffset);
                 if (result != null) {
                     try {

@@ -76,6 +76,9 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
      *
      * See <a href="http://rocketmq.apache.org/docs/core-concept/">here</a> for further discussion.
      */
+    /**
+     * 消息这所属组
+     */
     private String consumerGroup;
 
     /**
@@ -89,6 +92,9 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
      * </p>
      *
      * This field defaults to clustering.
+     */
+    /**
+     * 消息消费模式
      */
     private MessageModel messageModel = MessageModel.CLUSTERING;
 
@@ -123,6 +129,9 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
      * </li>
      * </ul>
      */
+    /**
+     * 消息进度获取不到重新的消费策略
+     */
     private ConsumeFromWhere consumeFromWhere = ConsumeFromWhere.CONSUME_FROM_LAST_OFFSET;
 
     /**
@@ -136,6 +145,9 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
     /**
      * Queue allocation algorithm specifying how message queues are allocated to each consumer clients.
      */
+    /**
+     * 集群模式下消息队列的负载策略
+     */
     private AllocateMessageQueueStrategy allocateMessageQueueStrategy;
 
     /**
@@ -146,10 +158,16 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
     /**
      * Message listener
      */
+    /**
+     * 消息业务的监听器
+     */
     private MessageListener messageListener;
 
     /**
      * Offset Storage
+     */
+    /**
+     * 消息消费进度的存储器
      */
     private OffsetStore offsetStore;
 
@@ -213,6 +231,9 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
     /**
      * Message pull Interval
      */
+    /**
+     * 推模式下拉取任务的间隔时间
+     */
     private long pullInterval = 0;
 
     /**
@@ -222,6 +243,9 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
 
     /**
      * Batch pull size
+     */
+    /**
+     * 每次消息拉取所拉取的条数
      */
     private int pullBatchSize = 32;
 
@@ -251,6 +275,9 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
 
     /**
      * Maximum amount of time in minutes a message may block the consuming thread.
+     */
+    /**
+     * 消息消费的超时时间
      */
     private long consumeTimeout = 15;
 

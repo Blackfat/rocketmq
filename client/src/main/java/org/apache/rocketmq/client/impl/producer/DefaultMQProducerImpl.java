@@ -488,6 +488,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                     long costTime = System.currentTimeMillis() - beginStartTime;
                     if (timeout > costTime) {
                         try {
+                            // 发送消息
                             sendDefaultImpl(msg, CommunicationMode.ASYNC, sendCallback, timeout - costTime);
                         } catch (Exception e) {
                             sendCallback.onException(e);
@@ -527,6 +528,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
         long beginTimestampFirst = System.currentTimeMillis();
         long beginTimestampPrev = beginTimestampFirst;
         long endTimestamp = beginTimestampFirst;
+        // 查找主题的路由信息
         TopicPublishInfo topicPublishInfo = this.tryToFindTopicPublishInfo(msg.getTopic());
         if (topicPublishInfo != null && topicPublishInfo.ok()) {
             boolean callTimeout = false;
@@ -538,6 +540,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
             String[] brokersSent = new String[timesTotal];
             for (; times < timesTotal; times++) {
                 String lastBrokerName = null == mq ? null : mq.getBrokerName();
+                // 选择消息队列
                 MessageQueue mqSelected = this.selectOneMessageQueue(topicPublishInfo, lastBrokerName);
                 if (mqSelected != null) {
                     mq = mqSelected;
@@ -680,11 +683,11 @@ public class DefaultMQProducerImpl implements MQProducerInner {
         }
     }
 
-    private SendResult sendKernelImpl(final Message msg,
-                                      final MessageQueue mq,
-                                      final CommunicationMode communicationMode,
-                                      final SendCallback sendCallback,
-                                      final TopicPublishInfo topicPublishInfo,
+    private SendResult sendKernelImpl(final Message msg, // 消息
+                                      final MessageQueue mq,// 消息发送队列
+                                      final CommunicationMode communicationMode, // 消息发送模式
+                                      final SendCallback sendCallback, // 异步消息的回调函数
+                                      final TopicPublishInfo topicPublishInfo, // 主题路由信息
                                       final long timeout) throws MQClientException, RemotingException, MQBrokerException, InterruptedException {
         long beginStartTime = System.currentTimeMillis();
         String brokerAddr = this.mQClientFactory.findBrokerAddressInPublish(mq.getBrokerName());

@@ -33,6 +33,7 @@ public class ConsumeQueue {
     private final DefaultMessageStore defaultMessageStore;
 
     private final MappedFileQueue mappedFileQueue;
+    // 对应topic下一个物理的队列
     private final String topic;
     private final int queueId;
     private final ByteBuffer byteBufferIndex;

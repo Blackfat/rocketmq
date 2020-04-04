@@ -41,16 +41,23 @@ import org.apache.rocketmq.store.config.FlushDiskType;
 import org.apache.rocketmq.store.util.LibC;
 import sun.nio.ch.DirectBuffer;
 
+/**
+ * RMQ想要性能高，那发送消息时，消息要写进Page Cache而不是直接写磁盘，接收消息时，消息要从Page Cache直接获取而不是缺页从磁盘读取。
+ */
 public class MappedFile extends ReferenceResource {
+    // 操作系统每页的大小
     public static final int OS_PAGE_SIZE = 1024 * 4;
     protected static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
 
+    // 当前JVM中Mapped-File虚拟内存
     private static final AtomicLong TOTAL_MAPPED_VIRTUAL_MEMORY = new AtomicLong(0);
-
+    // 当前JVM中MapperFile的个数
     private static final AtomicInteger TOTAL_MAPPED_FILES = new AtomicInteger(0);
+    // 当前文件的写指针
     protected final AtomicInteger wrotePosition = new AtomicInteger(0);
     //ADD BY ChenYang
     protected final AtomicInteger committedPosition = new AtomicInteger(0);
+    // 当前文件的刷盘指针
     private final AtomicInteger flushedPosition = new AtomicInteger(0);
     protected int fileSize;
     protected FileChannel fileChannel;
@@ -59,11 +66,18 @@ public class MappedFile extends ReferenceResource {
      */
     protected ByteBuffer writeBuffer = null;
     protected TransientStorePool transientStorePool = null;
+    // 文件名称
     private String fileName;
+    // 文件的起始偏移
     private long fileFromOffset;
+    // 物理文件
     private File file;
+    // Linux底层就提供了mmap将一个程序指定的文件映射进虚拟内存（Virtual Memory），对文件的读写就变成了对内存的读写，能充分利用Page Cache
+    // 虚拟内存映射物理内存
     private MappedByteBuffer mappedByteBuffer;
+    // 文件最后一次写入事件
     private volatile long storeTimestamp = 0;
+    // 是否是MapperFileQueue中的第一个文件
     private boolean firstCreateInQueue = false;
 
     public MappedFile() {
@@ -147,6 +161,9 @@ public class MappedFile extends ReferenceResource {
         final TransientStorePool transientStorePool) throws IOException {
         init(fileName, fileSize);
         this.writeBuffer = transientStorePool.borrowBuffer();
+        // 堆内存池，开启优先将内容存在堆外内存，然后通过commit线程将数据提交到内存映射的buffer中
+        // 然后通过flush线程将内存映射buffer数据持久化到磁盘中
+        // 将堆外内存一直锁定在内存中，避免被进程将内存交互到磁盘中
         this.transientStorePool = transientStorePool;
     }
 
@@ -202,8 +219,9 @@ public class MappedFile extends ReferenceResource {
         assert messageExt != null;
         assert cb != null;
 
+        // 当前文件的写指针
         int currentPos = this.wrotePosition.get();
-
+        // 大于或等于文件大小，表示文件已经写满
         if (currentPos < this.fileSize) {
             ByteBuffer byteBuffer = writeBuffer != null ? writeBuffer.slice() : this.mappedByteBuffer.slice();
             byteBuffer.position(currentPos);
@@ -296,7 +314,8 @@ public class MappedFile extends ReferenceResource {
         return this.getFlushedPosition();
     }
 
-    public int commit(final int commitLeastPages) {
+    // 提交的页数
+    public int commit(final int commitLeastPages) {// pageCache的页数
         if (writeBuffer == null) {
             //no need to commit data to file channel, so just regard wrotePosition as committedPosition.
             return this.wrotePosition.get();

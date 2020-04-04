@@ -35,14 +35,19 @@ public class MappedFileQueue {
 
     private static final int DELETE_FILES_BATCH_MAX = 10;
 
+
+    // 文件存储路径
     private final String storePath;
 
+    // 单个文件的存储大小
     private final int mappedFileSize;
 
+    // 文件集合
     private final CopyOnWriteArrayList<MappedFile> mappedFiles = new CopyOnWriteArrayList<MappedFile>();
 
     private final AllocateMappedFileService allocateMappedFileService;
 
+    // 刷盘指针，当前指针之前的数据全部持久化到磁盘
     private long flushedWhere = 0;
     private long committedWhere = 0;
 
@@ -74,6 +79,7 @@ public class MappedFileQueue {
         }
     }
 
+    // 根据消息存储时间查找
     public MappedFile getMappedFileByTime(final long timestamp) {
         Object[] mfs = this.copyMappedFiles(0);
 
@@ -459,6 +465,7 @@ public class MappedFileQueue {
      * @param returnFirstOnNotFound If the mapped file is not found, then return the first one.
      * @return Mapped file or null (when not found and returnFirstOnNotFound is <code>false</code>).
      */
+    // 根据消息偏移量查找MappedFile
     public MappedFile findMappedFileByOffset(final long offset, final boolean returnFirstOnNotFound) {
         try {
             MappedFile firstMappedFile = this.getFirstMappedFile();
@@ -472,6 +479,7 @@ public class MappedFileQueue {
                         this.mappedFileSize,
                         this.mappedFiles.size());
                 } else {
+                    // 第一个文件可能已经被删除了
                     int index = (int) ((offset / this.mappedFileSize) - (firstMappedFile.getFileFromOffset() / this.mappedFileSize));
                     MappedFile targetFile = null;
                     try {
