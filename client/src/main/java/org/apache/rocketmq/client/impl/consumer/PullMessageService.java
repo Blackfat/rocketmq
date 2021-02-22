@@ -30,6 +30,7 @@ import org.apache.rocketmq.common.utils.ThreadUtils;
 // 只提供PUSH模式服务
 public class PullMessageService extends ServiceThread {
     private final InternalLogger log = ClientLogger.getLog();
+    // 阻塞队列
     private final LinkedBlockingQueue<PullRequest> pullRequestQueue = new LinkedBlockingQueue<PullRequest>();
     private final MQClientInstance mQClientFactory;
     private final ScheduledExecutorService scheduledExecutorService = Executors
@@ -77,6 +78,7 @@ public class PullMessageService extends ServiceThread {
         return scheduledExecutorService;
     }
 
+    // 拉取消息
     private void pullMessage(final PullRequest pullRequest) {
         final MQConsumerInner consumer = this.mQClientFactory.selectConsumer(pullRequest.getConsumerGroup());
         if (consumer != null) {

@@ -64,7 +64,19 @@ public class MappedFile extends ReferenceResource {
     /**
      * Message will put to here first, and then reput to FileChannel if writeBuffer is not null.
      */
+    // 如果开启了transientStorePoolEnable，消息会写入堆外内存，然后提交到 PageCache 并最终刷写到磁盘。
     protected ByteBuffer writeBuffer = null;
+    // ByteBuffer的缓冲池，堆外内存，transientStorePoolEnable 为 true 时生效。
+    /**
+     * 通常有如下两种方式进行读写：
+     *
+     * 第一种，Mmap+PageCache的方式，读写消息都走的是pageCache，这样子读写都在pagecache里面不可避免会有锁的问题，
+     * 在并发的读写操作情况下，会出现缺页中断降低，内存加锁，污染页的回写。
+     * 第二种，DirectByteBuffer(堆外内存)+PageCache的两层架构方式，这样子可以实现读写消息分离，
+     * 写入消息时候写到的是DirectByteBuffer——堆外内存中,读消息走的是PageCache(对于,DirectByteBuffer是两步刷盘，
+     * 一步是刷到PageCache，还有一步是刷到磁盘文件中)，带来的好处就是，避免了内存操作的并发读写的问题，
+     * 降低了时延，比如说缺页中断降低，内存加锁，污染页的回写。
+     */
     protected TransientStorePool transientStorePool = null;
     // 文件名称
     private String fileName;
@@ -74,6 +86,7 @@ public class MappedFile extends ReferenceResource {
     private File file;
     // Linux底层就提供了mmap将一个程序指定的文件映射进虚拟内存（Virtual Memory），对文件的读写就变成了对内存的读写，能充分利用Page Cache
     // 虚拟内存映射物理内存
+    // RocketMQ中的文件读写主要就是通过MappedByteBuffer进行操作，来进行文件映射。利用了nio中的FileChannel模型，可以直接将物理文件映射到缓冲区，提高读写速度。
     private MappedByteBuffer mappedByteBuffer;
     // 文件最后一次写入事件
     private volatile long storeTimestamp = 0;
@@ -177,7 +190,19 @@ public class MappedFile extends ReferenceResource {
         ensureDirOK(this.file.getParent());
 
         try {
+            /**
+             * 1.缓冲区的字节可以通过绝对路径被读写，而当前channel的位置不受影响。
+             *
+             * 2.一个文件的区块能够被直接映射到内存中去，特别对大文件来说，更加高效。
+             *
+             * 3.文件的更新能够被强制写到下层的存储区域。
+             *
+             * 4.字节能够在文件和channel之间自由的转移，并且非常的高效快速。
+             *
+             * 利用filechannel.map()进行文件到内存映射。
+             */
             this.fileChannel = new RandomAccessFile(this.file, "rw").getChannel();
+            // 使用FileChannel#map方法创建,mappedByteBuffer就是PageCache
             this.mappedByteBuffer = this.fileChannel.map(MapMode.READ_WRITE, 0, fileSize);
             TOTAL_MAPPED_VIRTUAL_MEMORY.addAndGet(fileSize);
             TOTAL_MAPPED_FILES.incrementAndGet();
@@ -223,6 +248,7 @@ public class MappedFile extends ReferenceResource {
         int currentPos = this.wrotePosition.get();
         // 大于或等于文件大小，表示文件已经写满
         if (currentPos < this.fileSize) {
+            // slice()方法用于创建一个共享了原始缓冲区子序列的新缓冲区。新缓冲区的position值是0，而其limit和capacity的值都等于原始缓冲区的limit和position的差值。
             ByteBuffer byteBuffer = writeBuffer != null ? writeBuffer.slice() : this.mappedByteBuffer.slice();
             byteBuffer.position(currentPos);
             AppendMessageResult result = null;

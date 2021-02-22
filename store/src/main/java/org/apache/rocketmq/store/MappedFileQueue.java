@@ -202,10 +202,12 @@ public class MappedFileQueue {
         MappedFile mappedFileLast = getLastMappedFile();
 
         if (mappedFileLast == null) {
+            // 新建的MappedFile为此queue中的第一个
             createOffset = startOffset - (startOffset % this.mappedFileSize);
         }
 
         if (mappedFileLast != null && mappedFileLast.isFull()) {
+            // 上一个 mappedFile 的起始物理偏移量 + 文件大小
             createOffset = mappedFileLast.getFileFromOffset() + this.mappedFileSize;
         }
 

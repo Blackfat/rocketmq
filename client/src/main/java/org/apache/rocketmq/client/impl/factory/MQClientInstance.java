@@ -85,6 +85,7 @@ import org.apache.rocketmq.remoting.exception.RemotingException;
 import org.apache.rocketmq.remoting.netty.NettyClientConfig;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 
+// 用一个进程中共享一个MQClientInstance实例
 public class MQClientInstance {
     private final static long LOCK_TIMEOUT_MILLIS = 3000;
     private final InternalLogger log = ClientLogger.getLog();
@@ -237,9 +238,9 @@ public class MQClientInstance {
                     this.mQClientAPIImpl.start();
                     // Start various schedule tasks
                     this.startScheduledTask();
-                    // Start pull service
+                    // Start pull service 启动拉取消息的线程
                     this.pullMessageService.start();
-                    // Start rebalance service
+                    // Start rebalance service 启动消费者rebalance的线程
                     this.rebalanceService.start();
                     // Start push service
                     this.defaultMQProducer.getDefaultMQProducerImpl().start(false);
@@ -298,6 +299,7 @@ public class MQClientInstance {
             }
         }, 1000, this.clientConfig.getHeartbeatBrokerInterval(), TimeUnit.MILLISECONDS);
 
+        // 默认消费端启动10秒后，每隔5s的频率持久化一次。
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
 
             @Override

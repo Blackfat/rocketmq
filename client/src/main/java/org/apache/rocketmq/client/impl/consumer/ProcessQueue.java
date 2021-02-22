@@ -199,8 +199,9 @@ public class ProcessQueue {
                         }
                     }
                     msgCount.addAndGet(removedCnt);
-
+                     // msgTreeMap 的类型，TreeMap, 按消息的 offset 升序排序
                     if (!msgTreeMap.isEmpty()) {
+                        // 此时返回的偏移量有可能不是消息本身的偏移量，而是处理队列中最小的偏移量。
                         result = msgTreeMap.firstKey();
                     }
                 }

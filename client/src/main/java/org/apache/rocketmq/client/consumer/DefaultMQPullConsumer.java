@@ -42,23 +42,29 @@ public class DefaultMQPullConsumer extends ClientConfig implements MQPullConsume
 
     /**
      * Do the same thing for the same Group, the application must be set,and guarantee Globally unique
+     *  消费组名称
      */
     private String consumerGroup;
     /**
      * Long polling mode, the Consumer connection max suspend time, it is not recommended to modify
+     * 长轮询模式下挂起的最大超时时间，在Broker端根据偏移量从存储文件中查找消息时如果返回 PULL_NOT_FOUND时，
+     * 不直接返回给拉取客户端，而是交给PullRequestHoldService线程，每隔5秒再去拉取一次消息，如果找到则返回给消息拉取客户端，否则超时。
      */
     private long brokerSuspendMaxTimeMillis = 1000 * 20;
     /**
      * Long polling mode, the Consumer connection timeout(must greater than brokerSuspendMaxTimeMillis), it is not
      * recommended to modify
+     *  整个消息拉取过程中，拉取客户端等待服务器响应结果的超时时间，默认30s
      */
     private long consumerTimeoutMillisWhenSuspend = 1000 * 30;
     /**
      * The socket timeout in milliseconds
+     * 默认10s,拉消息时建立网络连接的超时时间
      */
     private long consumerPullTimeoutMillis = 1000 * 10;
     /**
      * Consumption pattern,default is clustering
+     * 消费模式，广播、集群
      */
     private MessageModel messageModel = MessageModel.CLUSTERING;
     /**
@@ -71,10 +77,12 @@ public class DefaultMQPullConsumer extends ClientConfig implements MQPullConsume
     private OffsetStore offsetStore;
     /**
      * Topic set you want to register
+     * 注册主题数
      */
     private Set<String> registerTopics = new HashSet<String>();
     /**
      * Queue allocation algorithm
+     * 队列分配器
      */
     private AllocateMessageQueueStrategy allocateMessageQueueStrategy = new AllocateMessageQueueAveragely();
     /**
@@ -82,6 +90,7 @@ public class DefaultMQPullConsumer extends ClientConfig implements MQPullConsume
      */
     private boolean unitMode = false;
 
+    // 最大消费重试次数
     private int maxReconsumeTimes = 16;
 
     public DefaultMQPullConsumer() {

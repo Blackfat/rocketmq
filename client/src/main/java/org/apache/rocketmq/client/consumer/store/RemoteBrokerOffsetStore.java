@@ -36,11 +36,12 @@ import org.apache.rocketmq.common.protocol.header.QueryConsumerOffsetRequestHead
 import org.apache.rocketmq.common.protocol.header.UpdateConsumerOffsetRequestHeader;
 import org.apache.rocketmq.remoting.exception.RemotingException;
 
-/**
+/** 集群模式消费进度存储
  * Remote storage implementation
  */
 public class RemoteBrokerOffsetStore implements OffsetStore {
     private final static InternalLogger log = ClientLogger.getLog();
+    // MQ客户端实例，该实例被同一个客户端的消费者、生产者共用
     private final MQClientInstance mQClientFactory;
     private final String groupName;
     private ConcurrentMap<MessageQueue, AtomicLong> offsetTable =
@@ -64,6 +65,7 @@ public class RemoteBrokerOffsetStore implements OffsetStore {
             }
 
             if (null != offsetOld) {
+                // 根据 increaseOnly 更新原先的 offsetOld 的值
                 if (increaseOnly) {
                     MixAll.compareAndIncreaseOnly(offsetOld, offset);
                 } else {

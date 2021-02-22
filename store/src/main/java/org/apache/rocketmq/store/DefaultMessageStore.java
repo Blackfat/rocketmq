@@ -85,12 +85,16 @@ public class DefaultMessageStore implements MessageStore {
     // CommitLog的消息分发
     private final ReputMessageService reputMessageService;
 
+    // 主从同步实现服务
     private final HAService haService;
 
+    // 定时任务调度器，执行定时任务
     private final ScheduleMessageService scheduleMessageService;
 
+    // 存储统计服务
     private final StoreStatsService storeStatsService;
 
+    //
     private final TransientStorePool transientStorePool;
 
     private final RunningFlags runningFlags = new RunningFlags();
@@ -108,6 +112,7 @@ public class DefaultMessageStore implements MessageStore {
 
     private AtomicLong printTimes = new AtomicLong(0);
 
+    // 转发 comitlog 日志，主要是从 commitlog 转发到 consumeQueue、index 文件。
     private final LinkedList<CommitLogDispatcher> dispatcherList;
 
     private RandomAccessFile lockFile;
@@ -357,6 +362,7 @@ public class DefaultMessageStore implements MessageStore {
         }
     }
 
+    // 消息存储入口
     public PutMessageResult putMessage(MessageExtBrokerInner msg) {
         if (this.shutdown) {
             log.warn("message store has shutdown, so putMessage is forbidden");
@@ -373,6 +379,7 @@ public class DefaultMessageStore implements MessageStore {
             return new PutMessageResult(PutMessageStatus.SERVICE_NOT_AVAILABLE, null);
         }
 
+        // 如果消息存储服务不可写，则消息写入会被拒绝
         if (!this.runningFlags.isWriteable()) {
             long value = this.printTimes.getAndIncrement();
             if ((value % 50000) == 0) {
@@ -396,11 +403,13 @@ public class DefaultMessageStore implements MessageStore {
             return new PutMessageResult(PutMessageStatus.PROPERTIES_SIZE_EXCEEDED, null);
         }
 
+        // 检测操作系统页写入是否繁忙
         if (this.isOSPageCacheBusy()) {
             return new PutMessageResult(PutMessageStatus.OS_PAGECACHE_BUSY, null);
         }
 
         long beginTime = this.getSystemClock().now();
+        // 将日志写入CommitLog 文件
         PutMessageResult result = this.commitLog.putMessage(msg);
 
         long eclipseTime = this.getSystemClock().now() - beginTime;
@@ -430,7 +439,6 @@ public class DefaultMessageStore implements MessageStore {
 
             return new PutMessageResult(PutMessageStatus.SERVICE_NOT_AVAILABLE, null);
         }
-
         if (!this.runningFlags.isWriteable()) {
             long value = this.printTimes.getAndIncrement();
             if ((value % 50000) == 0) {
