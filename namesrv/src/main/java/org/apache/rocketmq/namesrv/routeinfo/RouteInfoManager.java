@@ -49,10 +49,15 @@ public class RouteInfoManager {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.NAMESRV_LOGGER_NAME);
     private final static long BROKER_CHANNEL_EXPIRED_TIME = 1000 * 60 * 2;
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
+    // Topic,以及对应的队列信息
     private final HashMap<String/* topic */, List<QueueData>> topicQueueTable;
+    // 以Broker Name为单位的Broker集合
     private final HashMap<String/* brokerName */, BrokerData> brokerAddrTable;
+    // 集群以及属于该集群的Broker列表
     private final HashMap<String/* clusterName */, Set<String/* brokerName */>> clusterAddrTable;
+    // 存活的Broker地址列表
     private final HashMap<String/* brokerAddr */, BrokerLiveInfo> brokerLiveTable;
+    // Broker对应的Filter Server列表
     private final HashMap<String/* brokerAddr */, List<String>/* Filter Server */> filterServerTable;
 
     public RouteInfoManager() {
@@ -142,14 +147,19 @@ public class RouteInfoManager {
                 String oldAddr = brokerData.getBrokerAddrs().put(brokerId, brokerAddr);
                 registerFirst = registerFirst || (null == oldAddr);
 
+                //更新Topic信息
+                //如果topicConfigWrapper不为空，且当前brokerId == 0，即为当前broker为master
+                //这里会判断只有master才会创建QueueData，因为只有master才包含了读写队列的信息
                 if (null != topicConfigWrapper
                     && MixAll.MASTER_ID == brokerId) {
+                    // // 如果Topic配置信息发生变更或者该broker为第一次注册
                     if (this.isBrokerTopicConfigChanged(brokerAddr, topicConfigWrapper.getDataVersion())
                         || registerFirst) {
                         ConcurrentMap<String, TopicConfig> tcTable =
                             topicConfigWrapper.getTopicConfigTable();
                         if (tcTable != null) {
                             for (Map.Entry<String, TopicConfig> entry : tcTable.entrySet()) {
+                                // 根据brokername及topicconfig（read、write queue数量等）新增或者更新到topicQueueTable中
                                 this.createAndUpdateQueueData(brokerName, entry.getValue());
                             }
                         }
@@ -173,7 +183,7 @@ public class RouteInfoManager {
                         this.filterServerTable.put(brokerAddr, filterServerList);
                     }
                 }
-
+                // 返回值（如果当前broker为slave节点）则将haServerAddr、masterAddr等信息设置到result返回值中
                 if (MixAll.MASTER_ID != brokerId) {
                     String masterAddr = brokerData.getBrokerAddrs().get(MixAll.MASTER_ID);
                     if (masterAddr != null) {
@@ -753,9 +763,15 @@ public class RouteInfoManager {
 }
 
 class BrokerLiveInfo {
+    // 最后一次更新时间
     private long lastUpdateTimestamp;
+    // 版本号
     private DataVersion dataVersion;
+    // Netty的Channel
     private Channel channel;
+    /**
+     * HA Broker的地址
+     * 是Slave从Master拉取数据时链接的地址,由brokerIp2+HA端口构成 */
     private String haServerAddr;
 
     public BrokerLiveInfo(long lastUpdateTimestamp, DataVersion dataVersion, Channel channel,

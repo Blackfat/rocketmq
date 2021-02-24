@@ -62,6 +62,12 @@ import org.apache.rocketmq.remoting.exception.RemotingTimeoutException;
 import org.apache.rocketmq.remoting.exception.RemotingTooMuchRequestException;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 
+/**
+ * 1	NettyBoss_%d	Reactor 主线程
+ * N	NettyServerEPOLLSelector_%d_%d	Reactor 线程池
+ * M1	NettyServerCodecThread_%d	Worker线程池
+ * M2	RemotingExecutorThread_%d	业务processor处理线程池
+ */
 public class NettyRemotingServer extends NettyRemotingAbstract implements RemotingServer {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(RemotingHelper.ROCKETMQ_REMOTING);
     private final ServerBootstrap serverBootstrap;
@@ -113,6 +119,7 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
 
                 @Override
                 public Thread newThread(Runnable r) {
+                    // Reactor 主线程
                     return new Thread(r, String.format("NettyEPOLLBoss_%d", this.threadIndex.incrementAndGet()));
                 }
             });
@@ -123,6 +130,7 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
 
                 @Override
                 public Thread newThread(Runnable r) {
+                    // Reactor 线程池
                     return new Thread(r, String.format("NettyServerEPOLLSelector_%d_%d", threadTotal, this.threadIndex.incrementAndGet()));
                 }
             });
@@ -182,10 +190,19 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
 
                 @Override
                 public Thread newThread(Runnable r) {
+                    // Worker线程池
                     return new Thread(r, "NettyServerCodecThread_" + this.threadIndex.incrementAndGet());
                 }
             });
 
+        /**
+         *  一个 Reactor 主线程负责监听 TCP 连接请求;
+         *  建立好连接后丢给 Reactor 线程池，它负责将建立好连接的 socket 注册到 selector
+         *  上去（这里有两种方式，NIO和Epoll，可配置），然后监听真正的网络数据;
+         *  拿到网络数据后，再丢给 Worker 线程池;
+         *
+         */
+        // 通过handler添加的handlers是对bossGroup线程组起作用，通过childHandler添加的handlers是对workerGroup线程组起作用
         ServerBootstrap childHandler =
             this.serverBootstrap.group(this.eventLoopGroupBoss, this.eventLoopGroupSelector)
                 .channel(useEpoll() ? EpollServerSocketChannel.class : NioServerSocketChannel.class)
