@@ -581,6 +581,8 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
 
                 this.checkConfig();
 
+                // 加工订阅信息，将 Map<String /* topic*/, String／＊　ｓｕｂ　ｅｘｔｅｎｄｓ＊／＞转换为Map<String,SubscriptionData>,
+                // 同时，如果消息消费模式为集群模式，还需要为该消费组对应一个重试主题。
                 this.copySubscription();
 
                 if (this.defaultMQPushConsumer.getMessageModel() == MessageModel.CLUSTERING) {

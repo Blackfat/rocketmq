@@ -68,13 +68,18 @@ public class RemotingCommand {
             }
         }
     }
-
+    // 请求操作码
     private int code;
     private LanguageCode language = LanguageCode.JAVA;
+    // 请求方程序的版本
     private int version = 0;
+    // 相当于reqeustId
     private int opaque = requestId.getAndIncrement();
+    // 区分是普通RPC还是onewayRPC得标志
     private int flag = 0;
+    // 传输自定义文本信息
     private String remark;
+    // 请求自定义扩展信息
     private HashMap<String, String> extFields;
     private transient CommandCustomHeader customHeader;
 
@@ -212,8 +217,11 @@ public class RemotingCommand {
         byte[] result = new byte[4];
 
         result[0] = type.getCode();
+        //右移16位后再和255与->“16-24位”
         result[1] = (byte) ((source >> 16) & 0xFF);
+        //右移8位后再和255与->“8-16位”
         result[2] = (byte) ((source >> 8) & 0xFF);
+        //右移0位后再和255与->“8-0位”
         result[3] = (byte) (source & 0xFF);
         return result;
     }
@@ -401,7 +409,7 @@ public class RemotingCommand {
     }
 
     public ByteBuffer encodeHeader(final int bodyLength) {
-        // 1> header length size
+        // 1> header length size 表示用4个字节来存储头部长度
         int length = 4;
 
         // 2> header data length
@@ -415,15 +423,16 @@ public class RemotingCommand {
 
         ByteBuffer result = ByteBuffer.allocate(4 + length - bodyLength);
 
-        // length
+        // length    缓冲区的最开始的4个字节用来存储总的长度
         result.putInt(length);
 
-        // header length
+        // header length  缓冲区接下来4个字节用来存储报文头部的长度
         result.put(markProtocolType(headerData.length, serializeTypeCurrentRPC));
 
-        // header data
+        // header data 缓冲区接下来存储报文头部数据
         result.put(headerData);
 
+        //读写指针指到缓存头部，并且设置了最多只能读出之前写入的数据长度(而不是整个缓存的容量大小)。
         result.flip();
 
         return result;

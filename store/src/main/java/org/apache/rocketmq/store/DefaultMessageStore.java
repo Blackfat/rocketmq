@@ -1237,6 +1237,8 @@ public class DefaultMessageStore implements MessageStore {
 
     private void addScheduleTask() {
 
+        // 每隔10s调度一次cleanFilesPeriodically，已检测是否需要清除过期文件
+        // 如果非当前写文件在一定时间间隔内没有再次被更新，则认为是过期文件，可以被删除
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
             @Override
             public void run() {
@@ -1551,8 +1553,11 @@ public class DefaultMessageStore implements MessageStore {
 
         private void deleteExpiredFiles() {
             int deleteCount = 0;
+            // 文件保留时间，也就是从最后一次更新时间到现在
             long fileReservedTime = DefaultMessageStore.this.getMessageStoreConfig().getFileReservedTime();
+            // 删除物理文件的间隔
             int deletePhysicFilesInterval = DefaultMessageStore.this.getMessageStoreConfig().getDeleteCommitLogFilesInterval();
+            // 第一次拒绝删除之后能保留的最大时间
             int destroyMapedFileIntervalForcibly = DefaultMessageStore.this.getMessageStoreConfig().getDestroyMapedFileIntervalForcibly();
 
             boolean timeup = this.isTimeToDelete();
@@ -1789,6 +1794,7 @@ public class DefaultMessageStore implements MessageStore {
         }
     }
 
+    // commitLog端每隔1秒轮询一次是否有新的消息
     class ReputMessageService extends ServiceThread {
         // 从哪个物理偏移量开始转发消息给ConsumerQueue和IndexFile
         private volatile long reputFromOffset = 0;
@@ -1855,6 +1861,8 @@ public class DefaultMessageStore implements MessageStore {
 
                                     if (BrokerRole.SLAVE != DefaultMessageStore.this.getMessageStoreConfig().getBrokerRole()
                                         && DefaultMessageStore.this.brokerConfig.isLongPollingEnable()) {
+                                        // 如果开启了长轮询并且角色为主节点，则通知有新消息到达
+                                        // 调用 pullRequestHoldService 的 notifyMessageArriving 方法，进行一次消息拉取
                                         DefaultMessageStore.this.messageArrivingListener.arriving(dispatchRequest.getTopic(),
                                             dispatchRequest.getQueueId(), dispatchRequest.getConsumeQueueOffset() + 1,
                                             dispatchRequest.getTagsCode(), dispatchRequest.getStoreTimestamp(),
